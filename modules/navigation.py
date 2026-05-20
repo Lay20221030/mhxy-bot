@@ -132,6 +132,99 @@ class Navigator:
         logger.info(f"[号{window_index+1}] 检测到可交互NPC，按空格交互")
         return self.input.interact_with_npc(window_index)
 
+    # ─── 地图坐标映射 (来自教程第11课) ──────────────────────
+
+    def calc_map_ratio(self, window_index: int, map_width: int, map_height: int,
+                       max_map_x: int, max_map_y: int) -> Tuple[float, float]:
+        """计算地图坐标与像素的比例
+
+        公式: ratio_x = max_map_x / map_width
+              ratio_y = max_map_y / map_height
+        然后: pixel_x = dest_x / ratio_x, pixel_y = dest_y / ratio_y
+
+        注意: Y轴是倒的(原点在顶部,数值往下增大)
+        """
+        ratio_x = max_map_x / map_width
+        ratio_y = max_map_y / map_height
+        return ratio_x, ratio_y
+
+    def game_to_map_pixel(self, game_x: int, game_y: int,
+                          ratio_x: float, ratio_y: float) -> Tuple[int, int]:
+        """游戏坐标 → 地图上的像素位置"""
+        pixel_x = int(game_x / ratio_x)
+        pixel_y = int(game_y / ratio_y)
+        return pixel_x, pixel_y
+
+    # ─── 坐标点击偏移计算 (来自教程第14课) ──────────────────
+
+    def calc_click_position(self, base_x: int, base_y: int,
+                            current_x: int, current_y: int,
+                            npc_x: int, npc_y: int,
+                            scale_factor: float = 1.0) -> Tuple[int, int]:
+        """计算强盗/NPC 的点击位置
+
+        公式: click_x = base_x + (current_x - npc_x) * scale_factor
+              click_y = base_y + (current_y - npc_y) * scale_factor
+        """
+        click_x = int(base_x + (current_x - npc_x) * scale_factor)
+        click_y = int(base_y + (current_y - npc_y) * scale_factor)
+        return click_x, click_y
+
+    # ─── 遮挡处理 (来自教程第15课) ──────────────────────────
+
+    def click_with_unblock(self, x: int, y: int, window_index: int,
+                           max_retries: int = 3) -> bool:
+        """点击目标，处理遮挡情况
+
+        策略:
+        1. 先直接点击 (最多 max_retries 次)
+        2. 每次点击后检测是否有对话框弹出
+        3. 如果 3 次都没成功 → 按 Ctrl + 点击 (强制穿透遮挡)
+        """
+        for attempt in range(max_retries):
+            # 等待角色停止移动再点击
+            self._wait_not_moving(window_index)
+
+            self.input.click(x, y, window_index)
+            time.sleep(0.5)
+
+            # 检测是否触发了对话框
+            if self._check_interactable(window_index):
+                return True
+
+            if self._check_dialog_open(window_index):
+                return True
+
+        # 3 次都失败 → Ctrl + 点击 (穿透遮挡触发对话)
+        logger.info(f"[号{window_index+1}] 被遮挡，使用 Ctrl 强制触发")
+        self.input.key("ctrl", window_index)  # 按住 Ctrl
+        time.sleep(0.1)
+        self.input.click(x, y, window_index)
+        time.sleep(0.5)
+
+        return self._check_interactable(window_index) or self._check_dialog_open(window_index)
+
+    def _check_dialog_open(self, window_index: int) -> bool:
+        """检测是否有对话框打开"""
+        return self.screen.find_template("dialog_confirm", window_index) is not None
+
+    def _wait_not_moving(self, window_index: int, timeout: float = 3.0):
+        """等待角色停止移动"""
+        start = time.time()
+        last_pos = None
+
+        while time.time() - start < timeout:
+            # 检测角色位置是否有变化 (简化: 检测两次截图差异)
+            region = self.screen.capture_region(window_index, 0, 0,
+                                                self.wg.windows[window_index].width, 50)
+            current_hash = hash(region.tobytes())
+
+            if last_pos is not None and current_hash == last_pos:
+                return  # 位置没变,已停止
+
+            last_pos = current_hash
+            time.sleep(0.3)
+
     def go_to_next_quest(self, window_index: int = 0) -> bool:
         """导航到下一个任务（通用入口）"""
         logger.info(f"[号{window_index+1}] 查找下一个任务目标...")
