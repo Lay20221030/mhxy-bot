@@ -54,6 +54,9 @@ TEMPLATES = {
     "death_dialog":       "templates/death_dialog.png",
     "captcha_dialog":     "templates/captcha_dialog.png",
     "treasure_map_icon":  "templates/treasure_map_icon.png",
+    "fly_flag_icon":      "templates/fly_flag_icon.png",
+    "fly_scroll_icon":    "templates/fly_scroll_icon.png",
+    "backpack_open":      "templates/backpack_open.png",
 }
 
 # ════════════════════════════════════════

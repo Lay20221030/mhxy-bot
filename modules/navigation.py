@@ -24,10 +24,11 @@ logger = logging.getLogger(__name__)
 class Navigator:
     """导航器 - 利用游戏内置寻路"""
 
-    def __init__(self, window_group, input_sim, screen_mgr):
+    def __init__(self, window_group, input_sim, screen_mgr, teleport=None):
         self.wg = window_group
         self.input = input_sim
         self.screen = screen_mgr
+        self.teleport = teleport  # TeleportHandler 实例
 
     def open_map(self, window_index: int) -> bool:
         """打开地图"""
@@ -225,10 +226,20 @@ class Navigator:
             last_pos = current_hash
             time.sleep(0.3)
 
-    def go_to_next_quest(self, window_index: int = 0) -> bool:
-        """导航到下一个任务（通用入口）"""
+    def go_to_next_quest(self, window_index: int = 0, dest_x: int = 0,
+                          dest_y: int = 0) -> bool:
+        """导航到下一个任务（通用入口）
+
+        策略：远距离先用飞行旗/飞行符传送到最近点，再短距离自动寻路
+        """
         logger.info(f"[号{window_index+1}] 查找下一个任务目标...")
 
+        # 1. 如果是远距离且有传送，优先传送
+        if self.teleport and (dest_x > 0 or dest_y > 0):
+            self.teleport.teleport_to(window_index, dest_x, dest_y, prefer_flag=True)
+            time.sleep(1)
+
+        # 2. 检测任务标记并在地图上导航
         markers = self.screen.wg.detect_quest_markers()
         if not markers:
             logger.info(f"[号{window_index+1}] 暂无任务标记")

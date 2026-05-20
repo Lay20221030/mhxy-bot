@@ -21,6 +21,7 @@ from modules.navigation import Navigator
 from modules.tasks.sect_quest import SectQuestHandler
 from modules.tasks.ghost_hunt import GhostHuntHandler
 from modules.tasks.treasure_map import TreasureMapHandler
+from modules.teleport import TeleportHandler
 from core.captcha import CaptchaHandler, CaptchaType
 from core.flow_control import FlowControl
 
@@ -50,7 +51,8 @@ class AutoBot:
         self.screen = ScreenManager(self.wg)
         self.input = InputSim(self.wg)
         self.combat = CombatHandler(self.wg, self.input, self.screen)
-        self.navigator = Navigator(self.wg, self.input, self.screen)
+        self.teleport = TeleportHandler(self.wg, self.input, self.screen)
+        self.navigator = Navigator(self.wg, self.input, self.screen, teleport=self.teleport)
         self.sect_quest = SectQuestHandler(self.wg, self.input, self.screen)
         self.ghost_hunt = GhostHuntHandler(self.wg, self.input, self.screen)
         self.captcha_handler = CaptchaHandler(self.wg, self.input, self.screen)
