@@ -31,6 +31,9 @@ class Navigator:
         self.teleport = teleport           # TeleportHandler 实例
         self.station_coach = station_coach  # StationCoachHandler 实例
 
+        # 位置缓存 — 避免重复飞行 (教程第28课优化)
+        self._pos_cache: dict = {}  # {window_idx: {"map": str, "x": int, "y": int}}
+
     def open_map(self, window_index: int) -> bool:
         """打开地图"""
         logger.debug(f"[号{window_index+1}] 打开地图")
@@ -235,13 +238,31 @@ class Navigator:
         """
         logger.info(f"[号{window_index+1}] 查找下一个任务目标...")
 
-        # 1. 如果是远距离，传送链路：飞行旗 → 驿站 → 步行
-        if self.teleport and (dest_x > 0 or dest_y > 0):
+        # 1. 位置缓存检查 — 如果已在目标附近，跳过传送
+        cache = self._pos_cache.get(window_index, {})
+        if cache and dest_x > 0 and dest_y > 0:
+            # 检查是否在目的地附近（误差范围内）
+            cached_x, cached_y = cache.get("x", 0), cache.get("y", 0)
+            if abs(cached_x - dest_x) < NAV.get("map_width", 545) // 10 and \
+               abs(cached_y - dest_y) < NAV.get("map_height", 276) // 10:
+                logger.debug(f"[号{window_index+1}] 已在目标附近，跳过传送")
+                # 直接步行即可
+                pass
+            else:
+                # 2. 远距离传送链路：飞行旗 → 驿站 → 步行
+                if self.teleport:
+                    if not self.teleport.teleport_to(window_index, dest_x, dest_y, prefer_flag=True):
+                        if self.station_coach:
+                            self.station_coach.go_to_map_via_coach(window_index, "大唐国境")
+                    time.sleep(1)
+        elif self.teleport and (dest_x > 0 or dest_y > 0):
             if not self.teleport.teleport_to(window_index, dest_x, dest_y, prefer_flag=True):
-                # 飞行旗失败，尝试驿站传送
                 if self.station_coach:
                     self.station_coach.go_to_map_via_coach(window_index, "大唐国境")
             time.sleep(1)
+
+        # 更新位置缓存
+        self._pos_cache[window_index] = {"x": dest_x, "y": dest_y}
 
         # 2. 检测任务标记并在地图上导航
         markers = self.screen.wg.detect_quest_markers()
