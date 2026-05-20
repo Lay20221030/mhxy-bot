@@ -24,11 +24,12 @@ logger = logging.getLogger(__name__)
 class Navigator:
     """导航器 - 利用游戏内置寻路"""
 
-    def __init__(self, window_group, input_sim, screen_mgr, teleport=None):
+    def __init__(self, window_group, input_sim, screen_mgr, teleport=None, station_coach=None):
         self.wg = window_group
         self.input = input_sim
         self.screen = screen_mgr
-        self.teleport = teleport  # TeleportHandler 实例
+        self.teleport = teleport           # TeleportHandler 实例
+        self.station_coach = station_coach  # StationCoachHandler 实例
 
     def open_map(self, window_index: int) -> bool:
         """打开地图"""
@@ -234,9 +235,12 @@ class Navigator:
         """
         logger.info(f"[号{window_index+1}] 查找下一个任务目标...")
 
-        # 1. 如果是远距离且有传送，优先传送
+        # 1. 如果是远距离，传送链路：飞行旗 → 驿站 → 步行
         if self.teleport and (dest_x > 0 or dest_y > 0):
-            self.teleport.teleport_to(window_index, dest_x, dest_y, prefer_flag=True)
+            if not self.teleport.teleport_to(window_index, dest_x, dest_y, prefer_flag=True):
+                # 飞行旗失败，尝试驿站传送
+                if self.station_coach:
+                    self.station_coach.go_to_map_via_coach(window_index, "大唐国境")
             time.sleep(1)
 
         # 2. 检测任务标记并在地图上导航
