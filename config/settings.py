@@ -57,6 +57,11 @@ TEMPLATES = {
     "fly_flag_icon":      "templates/fly_flag_icon.png",
     "fly_scroll_icon":    "templates/fly_scroll_icon.png",
     "backpack_open":      "templates/backpack_open.png",
+    "warehouse_npc":      "templates/warehouse_npc.png",
+    "friend_icon":        "templates/friend_icon.png",
+    "login_button":       "templates/login_button.png",
+    "login_screen":       "templates/login_screen.png",
+    "disconnect_dialog":  "templates/disconnect_dialog.png",
 }
 
 # ════════════════════════════════════════
